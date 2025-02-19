@@ -1,33 +1,61 @@
 import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "/vite.svg";
+import { v4 as uuidv4 } from "uuid";
 import "./App.css";
 
 function App() {
-  const [count, setCount] = useState(0);
+  const [uuid, set_uuid] = useState(uuidv4());
+  const [command_type, set_command_type] = useState("command_type");
+  const [command_text, set_command_text] = useState("{\n}");
 
   return (
     <>
       <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+        <input
+          type="text"
+          value={uuid}
+          style={{ fontFamily: "monospace", width: "36ch" }}
+          autoCorrect="off"
+          autoComplete="off"
+          spellCheck={false}
+          onChange={(e) => set_uuid(e.target.value)}
+        />
+        <input
+          type="button"
+          value="refresh"
+          onClick={() => set_uuid(uuidv4())}
+        />
       </div>
-      <h1>Admin Dashboard</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
+      <div>
+        <input
+          type="text"
+          value={command_type}
+          style={{
+            fontFamily: "monospace",
+            width: "100%",
+            boxSizing: "border-box",
+          }}
+          autoCorrect="off"
+          autoComplete="off"
+          spellCheck={false}
+          onChange={(e) => set_command_type(e.target.value)}
+        />
       </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
+      <div>
+        <textarea
+          rows={6}
+          style={{
+            resize: "none",
+            fontFamily: "monospace",
+            width: "100%",
+            boxSizing: "border-box",
+          }}
+          onChange={(e) => set_command_text(e.target.value)}
+          value={command_text}
+        />
+      </div>
+      <div>
+        <input type="button" style={{ width: "100%" }} value="submit" />
+      </div>
     </>
   );
 }
