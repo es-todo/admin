@@ -1,11 +1,41 @@
 import { useState } from "react";
 import { v4 as uuidv4 } from "uuid";
+import axios from "axios";
+import json5 from "json5";
+
 import "./App.css";
 
 function App() {
   const [uuid, set_uuid] = useState(uuidv4());
   const [command_type, set_command_type] = useState("command_type");
   const [command_text, set_command_text] = useState("{\n}");
+  const [submit_enabled, set_submit_enabled] = useState(true);
+  const [log, set_log] = useState<string[]>([
+    "change command_text, add data and click submit",
+  ]);
+
+  const do_post_command = async () => {
+    set_submit_enabled(false);
+    const command_data_info = (() => {
+      try {
+        const command_data = json5.parse(command_text);
+        return { error: false as const, command_data };
+      } catch (err: any) {
+        const errloc: { lineNumber: number; columnNumber: number } = err;
+        return {
+          error: true as const,
+          location: `${errloc.lineNumber}:${errloc.columnNumber}`,
+        };
+      }
+    })();
+    if (command_data_info.error) {
+      set_log([`parse error at ${command_data_info.location}`]);
+      set_submit_enabled(true);
+      return;
+    }
+    const command_data = command_data_info.command_data;
+    set_log(["submitting ...", JSON.stringify(command_data)]);
+  };
 
   return (
     <>
@@ -49,12 +79,26 @@ function App() {
             width: "100%",
             boxSizing: "border-box",
           }}
+          autoCorrect="off"
+          autoComplete="off"
+          spellCheck={false}
           onChange={(e) => set_command_text(e.target.value)}
           value={command_text}
         />
       </div>
       <div>
-        <input type="button" style={{ width: "100%" }} value="submit" />
+        <input
+          type="button"
+          style={{ width: "100%" }}
+          value="submit"
+          onClick={do_post_command}
+          disabled={!submit_enabled}
+        />
+      </div>
+      <div>
+        {log.map((x, i) => (
+          <div key={i}>{x}</div>
+        ))}
       </div>
     </>
   );
