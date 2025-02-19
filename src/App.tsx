@@ -11,7 +11,7 @@ function App() {
   const [command_text, set_command_text] = useState("{\n}");
   const [submit_enabled, set_submit_enabled] = useState(true);
   const [log, set_log] = useState<string[]>([
-    "change command_text, add data and click submit",
+    "Hint: Change command_text, add command data as json, and click submit button.",
   ]);
 
   const do_post_command = async () => {
@@ -38,8 +38,10 @@ function App() {
   };
 
   return (
-    <>
-      <div>
+    <div
+      style={{ display: "flex", flexDirection: "column", width: "min-content" }}
+    >
+      <div style={{ width: "max-content" }}>
         <input
           type="text"
           value={uuid}
@@ -95,12 +97,12 @@ function App() {
           disabled={!submit_enabled}
         />
       </div>
-      <div>
+      <div style={{ fontSize: ".8em" }}>
         {log.map((x, i) => (
           <div key={i}>{x}</div>
         ))}
       </div>
-    </>
+    </div>
   );
 }
 
