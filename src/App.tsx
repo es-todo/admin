@@ -35,6 +35,29 @@ function App() {
     }
     const command_data = command_data_info.command_data;
     set_log(["submitting ...", JSON.stringify(command_data)]);
+    const result = await axios.post(
+      "/event-apis/submit-command",
+      {
+        command_uuid: uuid,
+        command_type,
+        command_data,
+      },
+      {
+        validateStatus: () => true,
+      }
+    );
+    if (result.status >= 200 && result.status < 300) {
+      set_log([
+        "Command submitted successfully.",
+        `Status: ${result.status}: ${result.statusText}`,
+      ]);
+    } else {
+      set_log([
+        "Command submission failed.",
+        `Status: ${result.status}: ${result.statusText}`,
+      ]);
+    }
+    set_submit_enabled(true);
   };
 
   return (
