@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import axios from "axios";
 import json5 from "json5";
 
 import "./App.css";
 
-function App() {
+function IssueCommand() {
   const [uuid, set_uuid] = useState(uuidv4());
   const [command_type, set_command_type] = useState("command_type");
   const [command_text, set_command_text] = useState("{\n}");
@@ -125,6 +125,59 @@ function App() {
           <div key={i}>{x}</div>
         ))}
       </div>
+    </div>
+  );
+}
+
+type queue_state =
+  | {
+      type: "initial";
+    }
+  | {
+      type: "fetching";
+    }
+  | {
+      type: "fetched";
+      outcome: { ok: true; data: any[] } | { ok: false; error: any };
+    };
+
+function CommandQueue() {
+  const [state, set_state] = useState<queue_state>({ type: "initial" });
+  useEffect(() => {
+    switch (state.type) {
+      case "initial": {
+        set_state({ type: "fetching" });
+        axios
+          .get("/event-apis/pending-commands")
+          .then((resp) => {
+            const data = resp.data;
+            set_state({ type: "fetched", outcome: { ok: true, data } });
+          })
+          .catch((error) => {
+            set_state({ type: "fetched", outcome: { ok: false, error } });
+          });
+      }
+    }
+  }, []);
+  return (
+    <div style={{ fontFamily: "monospace" }}>
+      {json5.stringify(state.type)}
+      {state.type === "fetched" &&
+        state.outcome.ok &&
+        state.outcome.data.map((x, i) => (
+          <div key={i} style={{ whiteSpace: "pre-wrap" }}>
+            {json5.stringify(x, null, 4)}
+          </div>
+        ))}
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <div style={{ display: "flex", flexDirection: "row", gap: ".5em" }}>
+      <IssueCommand />
+      <CommandQueue />
     </div>
   );
 }
