@@ -130,41 +130,83 @@ function IssueCommand() {
 }
 
 type queue_state =
-  | {
-      type: "initial";
+  | { type: "initial" }
+  | { type: "fetching" }
+  | { type: "fetched"; commands: any[] };
+
+function assert(condition: any): asserts condition {
+  if (!condition) throw new Error("condition failed");
+}
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function forever<T>(f: () => Promise<T>): Promise<T> {
+  while (true) {
+    try {
+      return await f();
+    } catch (error) {
+      console.error(error);
+      await sleep(100);
     }
-  | {
-      type: "fetching";
-    }
-  | {
-      type: "fetched";
-      outcome: { ok: true; data: any[] } | { ok: false; error: any };
-    };
+  }
+}
+
+async function fetch_queue_t(): Promise<number> {
+  return forever(async () => {
+    const x = await axios.get("/event-apis/queue-t");
+    assert(typeof x.data === "number");
+    console.log({ queue_t: x.data });
+    return x.data;
+  });
+}
+
+async function poll_queue_t(queue_t: number): Promise<void> {
+  return forever(async () => {
+    await axios.get(`/event-apis/poll-command-queue?queue_t=${queue_t}`);
+  });
+}
+
+async function fetch_pending_commands(): Promise<any[]> {
+  return forever(async () => {
+    const x = await axios.get("/event-apis/pending-commands");
+    assert(Array.isArray(x.data));
+    return x.data;
+  });
+}
+
+async function refresh_commands(on_success: (commands: any[]) => void) {
+  let t = await fetch_queue_t();
+  while (true) {
+    const commands = await fetch_pending_commands();
+    on_success(commands);
+    t += 1;
+    await poll_queue_t(t);
+  }
+}
 
 function CommandQueue() {
   const [state, set_state] = useState<queue_state>({ type: "initial" });
   useEffect(() => {
+    //let cancel: (() => void) | undefined = undefined;
+    //const p: Promise<void> = new Promise((resolve) => {
+    //  cancel = resolve;
+    //});
     switch (state.type) {
       case "initial": {
         set_state({ type: "fetching" });
-        axios
-          .get("/event-apis/pending-commands")
-          .then((resp) => {
-            const data = resp.data;
-            set_state({ type: "fetched", outcome: { ok: true, data } });
-          })
-          .catch((error) => {
-            set_state({ type: "fetched", outcome: { ok: false, error } });
-          });
+        refresh_commands((commands) =>
+          set_state({ type: "fetched", commands })
+        );
       }
     }
   }, []);
   return (
     <div style={{ fontFamily: "monospace" }}>
-      {json5.stringify(state.type)}
+      {state.type}
       {state.type === "fetched" &&
-        state.outcome.ok &&
-        state.outcome.data.map((x, i) => (
+        state.commands.map((x, i) => (
           <div key={i} style={{ whiteSpace: "pre-wrap" }}>
             {json5.stringify(x, null, 4)}
           </div>
