@@ -132,7 +132,7 @@ function IssueCommand() {
 type queue_state =
   | { type: "initial" }
   | { type: "fetching" }
-  | { type: "fetched"; commands: any[] };
+  | { type: "fetched"; commands: any[]; events: any[] };
 
 function assert(condition: any): asserts condition {
   if (!condition) throw new Error("condition failed");
@@ -176,17 +176,82 @@ async function fetch_pending_commands(): Promise<any[]> {
   });
 }
 
-async function refresh_commands(on_success: (commands: any[]) => void) {
+type recent_event = {
+  event_t: string;
+  event_date: string;
+  event_data: { data: any; type: string }[];
+  command_uuid: string;
+};
+
+function RecentEvent({ event }: { event: recent_event }) {
+  return (
+    <div>
+      <div>
+        <span style={{ fontSize: "1.5em" }}>{event.event_t}</span>{" "}
+        {event.event_date.replace("T", " ").replace("Z", "")}
+      </div>
+      <div>
+        {event.event_data.map((x, i) => (
+          <div key={i} style={{ whiteSpace: "pre-wrap" }}>
+            {x.type + ": " + json5.stringify(x.data, undefined, 2)}
+          </div>
+        ))}
+      </div>
+      {false && <div>{event.command_uuid}</div>}
+    </div>
+  );
+}
+
+function RecentEvents({ events }: { events: recent_event[] | undefined }) {
+  return (
+    <div style={{ fontFamily: "monospace" }}>
+      {events
+        ? events.length === 0
+          ? "empty"
+          : events.map((x, i) => <RecentEvent key={i} event={x} />)
+        : "fetching ..."}
+    </div>
+  );
+}
+
+async function fetch_recent_events(): Promise<recent_event[]> {
+  return forever(async () => {
+    const x = await axios.get("/event-apis/recent-events?limit=30");
+    assert(Array.isArray(x.data));
+    return x.data;
+  });
+}
+
+async function refresh_commands(
+  on_success: (out: { commands: any[]; events: any[] }) => void
+) {
   let t = await fetch_queue_t();
   while (true) {
     const commands = await fetch_pending_commands();
-    on_success(commands);
+    const events = await fetch_recent_events();
+    on_success({ commands, events });
     t += 1;
     await poll_queue_t(t);
   }
 }
 
-function CommandQueue() {
+function JSONBoxes({ ls }: { ls: any[] | undefined }) {
+  return (
+    <div style={{ fontFamily: "monospace" }}>
+      {ls
+        ? ls.length === 0
+          ? "empty"
+          : ls.map((x, i) => (
+              <div key={i} style={{ whiteSpace: "pre-wrap" }}>
+                {json5.stringify(x, null, 4)}
+              </div>
+            ))
+        : "fetching ..."}
+    </div>
+  );
+}
+
+function App() {
   const [state, set_state] = useState<queue_state>({ type: "initial" });
   useEffect(() => {
     //let cancel: (() => void) | undefined = undefined;
@@ -196,30 +261,27 @@ function CommandQueue() {
     switch (state.type) {
       case "initial": {
         set_state({ type: "fetching" });
-        refresh_commands((commands) =>
-          set_state({ type: "fetched", commands })
+        refresh_commands(({ commands, events }) =>
+          set_state({ type: "fetched", commands, events })
         );
       }
     }
   }, []);
   return (
-    <div style={{ fontFamily: "monospace" }}>
-      {state.type}
-      {state.type === "fetched" &&
-        state.commands.map((x, i) => (
-          <div key={i} style={{ whiteSpace: "pre-wrap" }}>
-            {json5.stringify(x, null, 4)}
-          </div>
-        ))}
-    </div>
-  );
-}
-
-function App() {
-  return (
     <div style={{ display: "flex", flexDirection: "row", gap: ".5em" }}>
-      <IssueCommand />
-      <CommandQueue />
+      <div>
+        <h1>Post Command</h1>
+        <IssueCommand />
+        <h1>Queued Commands</h1>
+        <JSONBoxes ls={state.type === "fetched" ? state.commands : undefined} />
+      </div>
+      <div>
+        <h1>Recent Events</h1>
+        <RecentEvents
+          events={state.type === "fetched" ? state.events : undefined}
+        />
+      </div>
+      <div></div>
     </div>
   );
 }
