@@ -153,18 +153,18 @@ async function forever<T>(f: () => Promise<T>): Promise<T> {
   }
 }
 
-async function fetch_queue_t(): Promise<number> {
+async function fetch_status_t(): Promise<number> {
   return forever(async () => {
-    const x = await axios.get("/event-apis/queue-t");
+    const x = await axios.get("/event-apis/status-t");
     assert(typeof x.data === "number");
-    console.log({ queue_t: x.data });
+    console.log({ status_t: x.data });
     return x.data;
   });
 }
 
-async function poll_queue_t(queue_t: number): Promise<void> {
+async function poll_status_t(status_t: number): Promise<void> {
   return forever(async () => {
-    await axios.get(`/event-apis/poll-command-queue?queue_t=${queue_t}`);
+    await axios.get(`/event-apis/poll-status?status_t=${status_t}`);
   });
 }
 
@@ -225,13 +225,13 @@ async function fetch_recent_events(): Promise<recent_event[]> {
 async function refresh_commands(
   on_success: (out: { commands: any[]; events: any[] }) => void
 ) {
-  let t = await fetch_queue_t();
+  let t = await fetch_status_t();
   while (true) {
     const commands = await fetch_pending_commands();
     const events = await fetch_recent_events();
     on_success({ commands, events });
     t += 1;
-    await poll_queue_t(t);
+    await poll_status_t(t);
   }
 }
 
